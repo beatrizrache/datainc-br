@@ -4,13 +4,14 @@ output: html_notebook
 ---
 
 ## SRAG Flows in São Paulo, Brazil
-# 2021 brought vaccines, buying freedom to most rich countries. In less prepared ones, 2021 brought about a deterioration in Covid-19 numbers.
-# In this project, 
 
-
-```{r, warning=F}
+```{r, warning=F, message=F}
 require(dplyr)
 require(igraph)
+require(geobr)
+require(sf)
+require(ggplot2)
+require(plotly)
 ```
 
 ```{r}
@@ -33,10 +34,6 @@ flows_count<-flows%>%
 ```
 ```{r message=FALSE, warning=FALSE}
 # Load Shapefile
-# install.packages('geobr')
-# install.packages('sf')
-require(geobr)
-require(sf)
 shp<-geobr::read_municipality(year=2020,showProgress=F)%>%
   filter(abbrev_state=='SP')%>%
   mutate(mun=floor(code_muni/10))%>%
@@ -47,8 +44,6 @@ shp_centroid<-shp%>%
 
 ```
 ```{r}
-require(ggplot2)
-require(plotly)
 # Network
 nodes<-flows_count%>%
   data.table::melt(measure.vars=c('mun_res','mun_hosp'))%>%
