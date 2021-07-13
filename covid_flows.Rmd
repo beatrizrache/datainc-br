@@ -5,10 +5,11 @@ output: html_notebook
 
 ## SRAG Flows in São Paulo, Brazil
 
-```{r, warning=F, message=F}
+```{r, message=F,warning=F}
 require(dplyr)
 require(igraph)
 require(geobr)
+require(htmlwidgets)
 require(sf)
 require(ggplot2)
 require(plotly)
@@ -34,6 +35,8 @@ flows_count<-flows%>%
 ```
 ```{r message=FALSE, warning=FALSE}
 # Load Shapefile
+# install.packages('geobr')
+# install.packages('sf')
 shp<-geobr::read_municipality(year=2020,showProgress=F)%>%
   filter(abbrev_state=='SP')%>%
   mutate(mun=floor(code_muni/10))%>%
@@ -70,8 +73,52 @@ nodes_cluster<-nodes%>%
     geom_sf(aes(geometry=geom,fill=label),lwd=0.1,show.legend=F)+
     geom_sf(data=shp_centroid%>%filter(name_muni=='São Paulo')%>%ungroup,aes(geometry=centr))+
     theme_void()+
-    theme(axis.line=element_blank())+
+    theme(axis.line=element_blank(),
+          plot.title=element_text(hjust = 0.5))+
     scale_fill_manual(values=rep(RColorBrewer::brewer.pal(n=12,name='Paired'),times=10))
+  gph_plotly<-ggplotly(gph,tooltip=c('text','fill'))%>%
+        layout(title=list(text = paste0('Figure 1: SARS Hospitalization Clusters in 2021 in São Paulo, Brazil',
+                                    '<br>',
+                                    '<sup>',
+                                    'Note: Colors repeat themselves in the legend. Interact with graph by hovering over map with mouse and clicking on clusters on the legend.',
+                                    '</sup>')),
+               margin = list(t=50))
+  saveWidget(as_widget(gph_plotly),"Z:/Temp/BR/fig1_map_covid21_total.html")
+  
+```
 
-  plotly::ggplotly(gph,tooltip=c('text','fill'))
+## Figure 2: ICU SRAG Hospitalization Flows and Clusters in 2021
+```{r}
+# Network
+edges_icu<-nodes%>%rename(mun_res=mun)%>%
+  merge(nodes%>%rename(mun_hosp=mun),all=T)%>%
+  left_join(flows_count,by=c('mun_res','mun_hosp'))%>%
+  mutate_at(.vars=c('share','share_icu'),.funs=function(x) {ifelse(is.na(x),0,x)})%>%
+  rename(weight=share_icu)
+
+dir_net_icu<-graph_from_data_frame(edges_icu%>%rename(),nodes,directed=TRUE)
+nodes_cluster_icu<-nodes%>%
+  mutate(cluster_fg=cluster_fast_greedy(as.undirected(dir_net_icu))$membership,
+         label=reorder(paste0('Cluster: ',cluster_fg),cluster_fg))
+```
+```{r}
+# Map
+  gph_icu=ggplot(nodes_cluster_icu%>%
+               inner_join(shp,by=c('mun')),aes(text=name_muni))+
+    geom_sf(aes(geometry=geom,fill=label),lwd=0.1,show.legend=F)+
+    geom_sf(data=shp_centroid%>%filter(name_muni=='São Paulo')%>%ungroup,aes(geometry=centr))+
+    theme_void()+
+    theme(axis.line=element_blank(),
+          plot.title=element_text(hjust = 0.5))+
+    scale_fill_manual(values=rep(RColorBrewer::brewer.pal(n=12,name='Paired'),times=10))+
+    labs(caption='')
+  gph_plotly_icu<-ggplotly(gph_icu,tooltip=c('text','fill'))%>%
+    layout(title=list(text = paste0('Figure 2: ICU SARS Hospitalization Clusters in 2021 in São Paulo, Brazil',
+                                    '<br>',
+                                    '<sup>',
+                                    'Note: Colors repeat themselves in the legend. Interact with graph by hovering over map with mouse and clicking on clusters on the legend.',
+                                    '</sup>')),
+           margin=list(t=50))
+  saveWidget(as_widget(gph_plotly_icu),"Z:/Temp/BR/fig2_map_covid21_icu.html")
+  
 ```
