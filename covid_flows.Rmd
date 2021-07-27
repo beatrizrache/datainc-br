@@ -44,6 +44,11 @@ shp<-geobr::read_municipality(year=2020,showProgress=F)%>%
 shp_centroid<-shp%>%
   group_by(mun)%>%
   mutate(centr=st_centroid(geom))
+# Merge with flows data
+flows_count_latlon<-flows_count%>%
+  left_join(shp_centroid%>%select(mun,centr),by=c('mun_res'='mun'))%>%
+  left_join(shp_centroid%>%select(mun,centr),by=c('mun_hosp'='mun'),suffix=c('_res','_hosp'))
+flows_count_latlon%>%write.table
 
 ```
 ```{r}
